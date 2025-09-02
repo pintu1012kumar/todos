@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
+import type { User } from '@supabase/supabase-js';
 import { useRouter } from "next/navigation";
 import { supabase } from "../supabase-client";
 import { fetchTodos, insertTodo, updateTodo, deleteTodo, handleLogout } from '../supabase'; // Import the separate functions
@@ -27,7 +28,7 @@ export default function TodoPage() {
   const [newTodo, setNewTodo] = useState<NewTodo>({ title: "", description: "" });
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
   const router = useRouter();
 

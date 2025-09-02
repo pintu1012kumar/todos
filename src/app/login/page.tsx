@@ -14,16 +14,16 @@ export default function LoginPage() {
   const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
   const router = useRouter();
 
-  const handleChange = (e: any) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleLogin = async (e: any) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setMessage(null);
 
     try {
-      const response = await fetch('http://localhost:3000/api/login', {
+      const response = await fetch('/api/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -74,7 +74,7 @@ export default function LoginPage() {
         <Button type="submit">Log In</Button>
       </form>
       <p className="text-center text-sm text-gray-500">
-        Don't have an account?{" "}
+        Don&amp;apos;t have an account?{" "}
         <Link href="/signup" className="underline hover:text-gray-900">
           Sign up
         </Link>
