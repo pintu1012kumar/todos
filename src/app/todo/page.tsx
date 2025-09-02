@@ -1,5 +1,3 @@
-// This is the first file, your TodoPage.tsx
-
 "use client";
 
 import { Input } from "@/components/ui/input";
@@ -9,7 +7,7 @@ import { useState, useEffect } from "react";
 import type { User } from '@supabase/supabase-js';
 import { useRouter } from "next/navigation";
 import { supabase } from "../supabase-client";
-import { fetchTodos, insertTodo, updateTodo, deleteTodo, handleLogout } from '../supabase'; // Import the separate functions
+import { fetchTodos, insertTodo, updateTodo, deleteTodo, handleLogout } from '../supabase';
 
 interface Todo {
   id: string;
@@ -34,10 +32,8 @@ export default function TodoPage() {
 
 
   const handleFetchTodos = async () => {
-    setLoading(true);
     const fetchedTodos = await fetchTodos();
     setTodos(fetchedTodos);
-    setLoading(false);
   };
 
   const changeHandler = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -102,82 +98,87 @@ export default function TodoPage() {
     };
   }, [router]);
 
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-  
-  if (!user) {
+  if (!user && !loading) {
     return null;
   }
 
   return (
-    <div className="flex flex-col gap-6 p-8 max-w-sm mx-auto">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Todo</h1>
+    <div className="flex flex-col gap-6 p-8 max-w-7xl mx-auto">
+      <div className="flex justify-between  items-center mb-8">
+        <h1 className="text-2xl font-bold">Todo App</h1>
         <Button onClick={handleUserLogout} variant="outline" size="sm">
           Logout
         </Button>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div className="grid w-full items-center gap-3">
-          <Label htmlFor="title">Title</Label>
-          <Input
-            type="text"
-            onChange={changeHandler}
-            name="title"
-            id="title"
-            placeholder="Title"
-            value={newTodo.title}
-            required
-          />
+      <div className="flex flex-col lg:flex-row gap-8 lg:gap-16">
+        {/* Left Section: Add/Edit Todo Form */}
+        <div className="lg:w-1/2 lg:sticky lg:top-8 lg:h-fit">
+          <h2 className="text-xl font-bold mb-4">
+            {editingTodo ? "Edit Todo" : "Add New Todo"}
+          </h2>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <div className="grid w-full items-center gap-3">
+              <Label htmlFor="title">Title</Label>
+              <Input
+                type="text"
+                onChange={changeHandler}
+                name="title"
+                id="title"
+                placeholder="Title"
+                value={newTodo.title}
+                required
+              />
+            </div>
+
+            <div className="grid w-full items-center gap-3">
+              <Label htmlFor="description">Description</Label>
+              <Input
+                type="text"
+                onChange={changeHandler}
+                name="description"
+                id="description"
+                placeholder="Description"
+                value={newTodo.description}
+                required
+              />
+            </div>
+
+            <Button type="submit">
+              {editingTodo ? "Update Todo" : "Add Todo"}
+            </Button>
+          </form>
         </div>
 
-        <div className="grid w-full items-center gap-3">
-          <Label htmlFor="description">Description</Label>
-          <Input
-            type="text"
-            onChange={changeHandler}
-            name="description"
-            id="description"
-            placeholder="Description"
-            value={newTodo.description}
-            required
-          />
-        </div>
-
-        <Button type="submit">
-          {editingTodo ? "Update Todo" : "Add Todo"}
-        </Button>
-      </form>
-
-      <div className="mt-8">
-        <h2 className="text-xl font-bold">My Todos</h2>
-        {todos.length > 0 ? (
-          <ul className="space-y-4">
-            {todos.map((todo) => (
-              <li
-                key={todo.id}
-                className="p-4 rounded-lg border border-gray-200 shadow-sm"
-              >
-                <div className="flex justify-between items-center">
-                  <h3 className="font-semibold">{todo.title}</h3>
-                  <div className="flex gap-2">
-                    <Button onClick={() => startEdit(todo)} variant="ghost" size="sm">
-                      Edit
-                    </Button>
-                    <Button onClick={() => handleDelete(todo.id)} variant="destructive" size="sm">
-                      Delete
-                    </Button>
+        {/* Right Section: My Todos List */}
+        <div className="lg:w-1/2">
+          <h2 className="text-xl font-bold mb-4">My Todos</h2>
+          {todos.length > 0 ? (
+            <ul className="space-y-4">
+              {todos.map((todo) => (
+                <li
+                  key={todo.id}
+                  className="p-4 rounded-lg border border-gray-200 shadow-sm"
+                >
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-semibold">{todo.title}</h3>
+                    <div className="flex gap-2">
+                      <Button onClick={() => startEdit(todo)} variant="ghost" size="sm">
+                        Edit
+                      </Button>
+                      <Button onClick={() => handleDelete(todo.id)} variant="destructive" size="sm">
+                        Delete
+                      </Button>
+                    </div>
                   </div>
-                </div>
-                <p className="text-sm text-gray-600">{todo.description}</p>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>No todos found. Add one above!</p>
-        )}
+                  <p className="text-sm text-gray-600">{todo.description}</p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-gray-500">No todos found. Add one above!</p>
+          )}
+        </div>
       </div>
     </div>
   );
