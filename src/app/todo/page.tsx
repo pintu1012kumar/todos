@@ -8,6 +8,7 @@ import type { User } from '@supabase/supabase-js';
 import { useRouter } from "next/navigation";
 import { supabase } from "../supabase-client";
 import { fetchTodos, insertTodo, updateTodo, deleteTodo, handleLogout } from '../supabase';
+import Link from "next/link";
 
 interface Todo {
   id: string;
@@ -104,12 +105,15 @@ export default function TodoPage() {
 
   return (
     <div className="flex flex-col gap-6 p-8 max-w-7xl mx-auto">
-      <div className="flex justify-between  items-center mb-8">
-        <h1 className="text-2xl font-bold">Todo App</h1>
-        <Button onClick={handleUserLogout} variant="outline" size="sm">
-          Logout
-        </Button>
-      </div>
+      <div className="flex justify-between items-center mb-8">
+  <h1 className="text-2xl font-bold">Todo App</h1>
+  <Link href="/documents" passHref>
+    <Button variant="default">documents upload</Button>
+  </Link>
+  <Button onClick={handleUserLogout} variant="outline" size="sm">
+    Logout
+  </Button>
+</div>
 
       <div className="flex flex-col lg:flex-row gap-8 lg:gap-16">
         {/* Left Section: Add/Edit Todo Form */}
