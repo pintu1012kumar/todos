@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Label } from '@/components/ui/label';
@@ -37,7 +37,7 @@ export default function FileUploadForm() {
     const [modalTitle, setModalTitle] = useState('');
     const [isConverting, setIsConverting] = useState(false);
 
-    const fetchFiles = async () => {
+    const fetchFiles = useCallback(async () => {
         if (!userId) return;
         setIsFetchingFiles(true);
         try {
@@ -48,7 +48,7 @@ export default function FileUploadForm() {
             setErrorMessages(['Failed to fetch files. Please check your Supabase RLS policies.']);
         }
         setIsFetchingFiles(false);
-    };
+    }, [userId]);
 
     useEffect(() => {
         const loadUser = async () => {
@@ -63,7 +63,7 @@ export default function FileUploadForm() {
         if (userId) {
             fetchFiles();
         }
-    }, [userId]);
+    }, [userId, fetchFiles]);
 
     useEffect(() => {
         if (!successMessage) return;
@@ -96,11 +96,11 @@ export default function FileUploadForm() {
         }
         setIsUploading(true);
 
-        const results = await uploadFilesForUser(userId, files);
+        const results = await uploadFilesForUser(userId, files) as Array<{ success: boolean; original: string; error?: string; stored?: string }>; 
         setIsUploading(false);
 
         const successfulUploads = results.filter(r => r.success).length;
-        const failedUploads = results.filter(r => !r.success) as any[];
+        const failedUploads = results.filter(r => !r.success);
 
         if (successfulUploads > 0) {
             setSuccessMessage(`${successfulUploads} files uploaded successfully!`);
@@ -129,9 +129,10 @@ export default function FileUploadForm() {
             await deleteUserFile(userId, fileName);
             setSuccessMessage(`${fileName} deleted successfully!`);
             setUploadedFiles(prevFiles => prevFiles.filter(file => file.name !== fileName));
-        } catch (error: any) {
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Unknown error';
             console.error('Delete Error:', error);
-            setErrorMessages([`Failed to delete ${fileName}: ${error.message}`]);
+            setErrorMessages([`Failed to delete ${fileName}: ${message}`]);
         }
     };
 
@@ -189,6 +190,10 @@ export default function FileUploadForm() {
         await handleLogout(router);
     };
 
+    const handleBackToTodo = () => {
+        router.push('/todo');
+    };
+
     const Modal = ({ isOpen, title, onClose, children }: {
         isOpen: boolean;
         title: string;
@@ -216,7 +221,10 @@ export default function FileUploadForm() {
 
     return (
         <div className="w-full max-w-5xl mx-auto p-4">
-            <div className="flex justify-end mb-4">
+            <div className="flex justify-between items-center mb-4">
+                <Button onClick={handleBackToTodo} variant="secondary" size="sm">
+                    Back to Todo
+                </Button>
                 {userId && (
                     <Button onClick={handleUserLogout} variant="outline" size="sm">
                         Logout

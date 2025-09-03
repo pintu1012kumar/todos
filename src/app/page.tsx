@@ -34,15 +34,17 @@ export default function HomeTextExtractor() {
         for (let pageIndex = 1; pageIndex <= pdf.numPages; pageIndex++) {
           const page = await pdf.getPage(pageIndex);
           const content = await page.getTextContent();
-          accumulated += content.items.map((item: any) => item.str).join(' ') + '\n\n';
+          const items = (content.items as Array<{ str: string }>);
+          accumulated += items.map((item) => item.str).join(' ') + '\n\n';
         }
         setTextContent(accumulated.trim());
       } else if (extension === 'docx') {
         const result = await mammoth.extractRawText({ arrayBuffer });
         setTextContent(result.value.trim());
       }
-    } catch (error: any) {
-      setErrorMessage(error?.message || 'Failed to convert file.');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to convert file.';
+      setErrorMessage(message);
     } finally {
       setIsConverting(false);
     }

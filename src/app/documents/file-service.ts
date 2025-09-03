@@ -6,18 +6,28 @@ export interface UploadedFile {
     id: string;
 }
 
+// Minimal pdf.js types used in this module
+interface PdfTextItem { str: string; transform: number[] }
+interface PdfTextContent { items: PdfTextItem[] }
+interface PdfPageProxy { getTextContent(options?: { normalizeWhitespace?: boolean; disableCombineTextItems?: boolean }): Promise<PdfTextContent> }
+interface PdfDocumentProxy { numPages: number; getPage(pageNumber: number): Promise<PdfPageProxy> }
+interface PdfJsLib {
+    version?: string;
+    GlobalWorkerOptions: { workerSrc: string };
+    getDocument(params: { data: ArrayBuffer }): { promise: Promise<PdfDocumentProxy> };
+}
 
-let pdfjsLoader: Promise<any> | null = null;
-export const loadPdfJsFromCdn = (): Promise<any> => {
+let pdfjsLoader: Promise<PdfJsLib> | null = null;
+export const loadPdfJsFromCdn = (): Promise<PdfJsLib> => {
     if (typeof window === 'undefined') return Promise.reject(new Error('No window'));
     if (pdfjsLoader) return pdfjsLoader;
-    pdfjsLoader = new Promise((resolve, reject) => {
-        const w = window as any;
+    pdfjsLoader = new Promise<PdfJsLib>((resolve, reject) => {
+        const w = window as unknown as { pdfjsLib?: PdfJsLib };
         if (w.pdfjsLib) return resolve(w.pdfjsLib);
         const script = document.createElement('script');
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js';
         script.async = true;
-        script.onload = () => resolve((window as any).pdfjsLib);
+        script.onload = () => resolve((window as unknown as { pdfjsLib: PdfJsLib }).pdfjsLib);
         script.onerror = () => reject(new Error('Failed to load pdf.js'));
         document.head.appendChild(script);
     });
@@ -29,7 +39,7 @@ export const convertFileUrlToText = async (fileUrl: string, fileType: string): P
     if (!response.ok) throw new Error(`HTTP error ${response.status}`);
 
     if (fileType === 'pdf') {
-        const pdfjsLib: any = await loadPdfJsFromCdn();
+        const pdfjsLib: PdfJsLib = await loadPdfJsFromCdn();
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
         const arrayBuffer = await response.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -41,7 +51,7 @@ export const convertFileUrlToText = async (fileUrl: string, fileType: string): P
 
             const buckets: { y: number; items: { x: number; str: string }[] }[] = [];
             const tolerance = 2;
-            (content.items as any[]).forEach((it: any) => {
+            (content.items as PdfTextItem[]).forEach((it: PdfTextItem) => {
                 const [, , , , x, y] = it.transform as number[];
                 let bucket = buckets.find(b => Math.abs(b.y - y) <= tolerance);
                 if (!bucket) {
@@ -74,7 +84,12 @@ export const listUserFiles = async (userId: string): Promise<UploadedFile[]> => 
     const folderPath = `documents/${userId}/`;
     const { data, error } = await supabase.storage.from('files').list(folderPath);
     if (error) throw error;
-    return (data || []).map((f) => ({ name: f.name, id: (f as any).id ?? f.name }));
+    // Supabase StorageObject does not guarantee an id field; fall back to name
+    type MaybeWithId = { name: string; id?: string };
+    return (data || []).map((f) => {
+        const obj = f as unknown as MaybeWithId;
+        return { name: obj.name, id: obj.id ?? obj.name } as UploadedFile;
+    });
 };
 
 export const uploadFilesForUser = async (userId: string, files: FileList) => {
