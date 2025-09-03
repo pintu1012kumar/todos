@@ -14,6 +14,7 @@ interface PdfDocumentProxy { numPages: number; getPage(pageNumber: number): Prom
 interface PdfJsLib {
     version?: string;
     GlobalWorkerOptions: { workerSrc: string };
+    disableWorker?: boolean;
     getDocument(params: { data: ArrayBuffer }): { promise: Promise<PdfDocumentProxy> };
 }
 
@@ -25,10 +26,17 @@ export const loadPdfJsFromCdn = (): Promise<PdfJsLib> => {
         const w = window as unknown as { pdfjsLib?: PdfJsLib };
         if (w.pdfjsLib) return resolve(w.pdfjsLib);
         const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js';
+        script.src = '/pdf.min.js';
         script.async = true;
         script.onload = () => resolve((window as unknown as { pdfjsLib: PdfJsLib }).pdfjsLib);
-        script.onerror = () => reject(new Error('Failed to load pdf.js'));
+        script.onerror = () => {
+            const cdn = document.createElement('script');
+            cdn.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js';
+            cdn.async = true;
+            cdn.onload = () => resolve((window as unknown as { pdfjsLib: PdfJsLib }).pdfjsLib);
+            cdn.onerror = () => reject(new Error('Failed to load pdf.js'));
+            document.head.appendChild(cdn);
+        };
         document.head.appendChild(script);
     });
     return pdfjsLoader;
@@ -40,7 +48,22 @@ export const convertFileUrlToText = async (fileUrl: string, fileType: string): P
 
     if (fileType === 'pdf') {
         const pdfjsLib: PdfJsLib = await loadPdfJsFromCdn();
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+        // Try local worker first, then CDN, else fallback to no-worker mode
+        try {
+            const headLocal = await fetch('/pdf.worker.min.js', { method: 'HEAD' });
+            if (headLocal.ok) {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+            } else {
+                const headCdn = await fetch('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js', { method: 'HEAD' });
+                if (headCdn.ok) {
+                    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+                } else {
+                    pdfjsLib.disableWorker = true;
+                }
+            }
+        } catch {
+            pdfjsLib.disableWorker = true;
+        }
         const arrayBuffer = await response.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
