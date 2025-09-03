@@ -1,13 +1,15 @@
+// next.config.js
+
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   webpack: (config, { isServer }) => {
+    // Only apply this rule to the client-side build
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
-        fs: false,
-        path: false,
-        crypto: false,
+        // The 'canvas' module is a server-side dependency.
+        // We tell Webpack to ignore it when building for the browser.
         canvas: false,
       };
     }
