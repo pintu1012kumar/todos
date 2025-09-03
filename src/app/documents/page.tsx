@@ -1,26 +1,27 @@
-'use client'
+'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation'; // Import useRouter for redirection
+import React, { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { supabase } from '../supabase-client';
+import { convertFileUrlToText, deleteUserFile, getPublicUrlForUserFile, listUserFiles, uploadFilesForUser } from './file-service';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Loader2, Trash2, Eye } from "lucide-react";
 
-// Assuming you have this file in '../supabase' with the logout function
-import { handleLogout } from '../supabase'; 
+import { handleLogout } from '../supabase';
 
-// Define a type for the uploaded files for better type safety
+
+
 interface UploadedFile {
     name: string;
     id: string;
 }
 
 export default function FileUploadForm() {
-    const router = useRouter(); // Initialize the router
+    const router = useRouter();
     const [files, setFiles] = useState<FileList | null>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [isFetchingFiles, setIsFetchingFiles] = useState(false);
@@ -30,18 +31,21 @@ export default function FileUploadForm() {
     const [errorMessages, setErrorMessages] = useState<string[]>([]);
     const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
+    // State for the custom modal
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalContent, setModalContent] = useState('');
+    const [modalTitle, setModalTitle] = useState('');
+    const [isConverting, setIsConverting] = useState(false);
+
     const fetchFiles = async () => {
         if (!userId) return;
         setIsFetchingFiles(true);
-        const folderPath = `documents/${userId}/`;
-        const { data, error } = await supabase.storage.from('files').list(folderPath);
-
-        if (error) {
+        try {
+            const files = await listUserFiles(userId);
+            setUploadedFiles(files);
+        } catch (error) {
             console.error('Error fetching files:', error);
             setErrorMessages(['Failed to fetch files. Please check your Supabase RLS policies.']);
-        } else {
-            const normalized = (data || []).map((f) => ({ name: f.name, id: f.id ?? f.name }));
-            setUploadedFiles(normalized);
         }
         setIsFetchingFiles(false);
     };
@@ -92,27 +96,11 @@ export default function FileUploadForm() {
         }
         setIsUploading(true);
 
-        const uploadPromises = Array.from(files).map(async (file: File) => {
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-            const filePath = `documents/${userId}/${fileName}`;
-
-            const { data, error } = await supabase.storage
-                .from('files')
-                .upload(filePath, file);
-
-            if (error) {
-                console.error('Upload Error:', error);
-                return { success: false, fileName: file.name, error: error.message };
-            }
-            return { success: true, fileName: file.name, data };
-        });
-
-        const results = await Promise.all(uploadPromises);
+        const results = await uploadFilesForUser(userId, files);
         setIsUploading(false);
 
-        const successfulUploads = results.filter(result => result.success).length;
-        const failedUploads = results.filter(result => !result.success);
+        const successfulUploads = results.filter(r => r.success).length;
+        const failedUploads = results.filter(r => !r.success) as any[];
 
         if (successfulUploads > 0) {
             setSuccessMessage(`${successfulUploads} files uploaded successfully!`);
@@ -126,7 +114,7 @@ export default function FileUploadForm() {
         if (failedUploads.length > 0) {
             setSuccessMessage('');
             setErrorMessages(
-                failedUploads.map(fail => `Failed to upload ${fail.fileName}: ${fail.error}`)
+                failedUploads.map(fail => `Failed to upload ${fail.original}: ${fail.error}`)
             );
         }
     };
@@ -137,18 +125,43 @@ export default function FileUploadForm() {
             return;
         }
 
-        const filePath = `documents/${userId}/${fileName}`;
-
-        const { data, error } = await supabase.storage
-            .from('files')
-            .remove([filePath]);
-
-        if (error) {
-            console.error('Delete Error:', error);
-            setErrorMessages([`Failed to delete ${fileName}: ${error.message}`]);
-        } else {
+        try {
+            await deleteUserFile(userId, fileName);
             setSuccessMessage(`${fileName} deleted successfully!`);
             setUploadedFiles(prevFiles => prevFiles.filter(file => file.name !== fileName));
+        } catch (error: any) {
+            console.error('Delete Error:', error);
+            setErrorMessages([`Failed to delete ${fileName}: ${error.message}`]);
+        }
+    };
+
+    const convertAndDisplay = async (fileUrl: string, fileType: string) => {
+        setIsConverting(true);
+        setModalContent('');
+        setModalTitle(`Content of ${fileType.toUpperCase()} file`);
+        setIsModalOpen(true);
+
+        try {
+            const response = await fetch(fileUrl);
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            if (fileType === 'pdf') {
+                // Delegate to service for conversion
+                const text = await convertFileUrlToText(fileUrl, 'pdf');
+                setModalContent(text);
+            } else if (fileType === 'docx') {
+                const text = await convertFileUrlToText(fileUrl, 'docx');
+                setModalContent(text);
+            } else {
+                setModalContent('This file type is not supported for text conversion.');
+            }
+        } catch (error) {
+            console.error('Conversion Error:', error);
+            setModalContent('Failed to convert file to text. Please try again.');
+        } finally {
+            setIsConverting(false);
         }
     };
 
@@ -157,24 +170,48 @@ export default function FileUploadForm() {
             setErrorMessages(['User not authenticated.']);
             return;
         }
-        const filePath = `documents/${userId}/${fileName}`;
 
-        // Get the public URL for the file
-        const { data } = supabase.storage
-            .from('files')
-            .getPublicUrl(filePath);
-
-        if (data?.publicUrl) {
-            // Open the URL in a new browser tab
-            window.open(data.publicUrl, '_blank');
-        } else {
+        const fileExt = fileName.split('.').pop()?.toLowerCase();
+        const publicUrl = getPublicUrlForUserFile(userId, fileName);
+        if (!publicUrl) {
             setErrorMessages(['Could not generate public URL.']);
+            return;
+        }
+
+        if (fileExt === 'pdf' || fileExt === 'docx') {
+            convertAndDisplay(publicUrl, fileExt);
+        } else {
+            window.open(publicUrl, '_blank');
         }
     };
 
-    // The new logout handler function
     const handleUserLogout = async () => {
-        await handleLogout(router); // Pass the router instance to your shared logout function
+        await handleLogout(router);
+    };
+
+    const Modal = ({ isOpen, title, onClose, children }: {
+        isOpen: boolean;
+        title: string;
+        onClose: () => void;
+        children: React.ReactNode;
+    }) => {
+        if (!isOpen) return null;
+
+        return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl h-3/4 p-6 flex flex-col">
+                    <div className="flex justify-between items-center border-b pb-4 mb-4">
+                        <h2 className="text-xl font-semibold">{title}</h2>
+                        <button onClick={onClose} className="text-gray-500 hover:text-gray-800 transition">
+                            &times;
+                        </button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto">
+                        {children}
+                    </div>
+                </div>
+            </div>
+        );
     };
 
     return (
@@ -192,7 +229,7 @@ export default function FileUploadForm() {
                         <CardHeader>
                             <CardTitle>File Upload</CardTitle>
                             <CardDescription>
-                                Upload PDF, DOCX, and JPG files to your Supabase storage.
+                                Upload PDF, DOCX, and other files to your Supabase storage.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
@@ -288,6 +325,19 @@ export default function FileUploadForm() {
                     </Card>
                 </div>
             </div>
+
+            <Modal isOpen={isModalOpen} title={modalTitle} onClose={() => setIsModalOpen(false)}>
+                {isConverting ? (
+                    <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                        <Loader2 className="h-8 w-8 animate-spin" />
+                        <span className="mt-2">Converting file...</span>
+                    </div>
+                ) : (
+                    <div className="h-full overflow-y-auto p-4 border rounded-md bg-gray-50 text-gray-700 whitespace-pre-wrap">
+                        {modalContent || 'No text content could be extracted or an error occurred.'}
+                    </div>
+                )}
+            </Modal>
         </div>
     );
 }
