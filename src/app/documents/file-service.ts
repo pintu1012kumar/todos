@@ -1,3 +1,5 @@
+// file-service.ts
+
 import mammoth from 'mammoth';
 import { supabase } from '../supabase-client';
 
@@ -7,10 +9,16 @@ export interface UploadedFile {
 }
 
 // Minimal pdf.js types used in this module
-interface PdfTextItem { str: string; transform: number[] }
-interface PdfTextContent { items: PdfTextItem[] }
-interface PdfPageProxy { getTextContent(options?: { normalizeWhitespace?: boolean; disableCombineTextItems?: boolean }): Promise<PdfTextContent> }
-interface PdfDocumentProxy { numPages: number; getPage(pageNumber: number): Promise<PdfPageProxy> }
+interface PdfTextItem {
+    str: string;
+    transform: number[];
+    fontName: string;
+    width: number;
+    height: number;
+}
+interface PdfTextContent { items: PdfTextItem[]; }
+interface PdfPageProxy { getTextContent(options?: { normalizeWhitespace?: boolean; disableCombineTextItems?: boolean }): Promise<PdfTextContent>; }
+interface PdfDocumentProxy { numPages: number; getPage(pageNumber: number): Promise<PdfPageProxy>; }
 interface PdfJsLib {
     version?: string;
     GlobalWorkerOptions: { workerSrc: string };
@@ -42,13 +50,21 @@ export const loadPdfJsFromCdn = (): Promise<PdfJsLib> => {
     return pdfjsLoader;
 };
 
-export const convertFileUrlToText = async (fileUrl: string, fileType: string): Promise<string> => {
+// New function to identify bold and italic text
+const isBold = (fontName: string): boolean => {
+    return fontName.toLowerCase().includes('bold') || fontName.toLowerCase().includes('black');
+};
+
+const isItalic = (fontName: string): boolean => {
+    return fontName.toLowerCase().includes('italic') || fontName.toLowerCase().includes('oblique');
+};
+
+export const convertFileUrlToHtml = async (fileUrl: string, fileType: string): Promise<string> => {
     const response = await fetch(fileUrl);
     if (!response.ok) throw new Error(`HTTP error ${response.status}`);
 
     if (fileType === 'pdf') {
         const pdfjsLib: PdfJsLib = await loadPdfJsFromCdn();
-        // Try local worker first, then CDN, else fallback to no-worker mode
         try {
             const headLocal = await fetch('/pdf.worker.min.js', { method: 'HEAD' });
             if (headLocal.ok) {
@@ -64,15 +80,20 @@ export const convertFileUrlToText = async (fileUrl: string, fileType: string): P
         } catch {
             pdfjsLib.disableWorker = true;
         }
+
         const arrayBuffer = await response.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const htmlParts: string[] = [];
 
-        const lines: string[] = [];
         for (let i = 1; i <= pdf.numPages; i++) {
             const page = await pdf.getPage(i);
-            const content = await page.getTextContent({ normalizeWhitespace: true, disableCombineTextItems: false });
+            const content = await page.getTextContent();
+            
+            // Find the most common font size as a baseline for paragraph text
+            const fontSizes = (content.items as PdfTextItem[]).map(item => item.transform[3]);
+            const baselineFontSize = fontSizes.length > 0 ? fontSizes.sort((a, b) => b - a)[Math.floor(fontSizes.length / 2)] : 12;
 
-            const buckets: { y: number; items: { x: number; str: string }[] }[] = [];
+            const buckets: { y: number; items: PdfTextItem[] }[] = [];
             const tolerance = 2;
             (content.items as PdfTextItem[]).forEach((it: PdfTextItem) => {
                 const [, , , , x, y] = it.transform as number[];
@@ -81,23 +102,53 @@ export const convertFileUrlToText = async (fileUrl: string, fileType: string): P
                     bucket = { y, items: [] };
                     buckets.push(bucket);
                 }
-                bucket.items.push({ x, str: it.str });
+                bucket.items.push(it);
             });
             buckets.sort((a, b) => b.y - a.y);
+
+            let pageHtml = '';
             for (const bucket of buckets) {
-                bucket.items.sort((a, b) => a.x - b.x);
-                const line = bucket.items.map(w => w.str).join(' ');
-                lines.push(line.trim());
+                bucket.items.sort((a, b) => a.transform[4] - b.transform[4]);
+                
+                let lineHtml = '';
+                const firstItem = bucket.items[0];
+                if (!firstItem) continue;
+
+                const isHeading = firstItem.transform[3] > baselineFontSize * 1.2 && isBold(firstItem.fontName);
+                const isH1 = firstItem.transform[3] > baselineFontSize * 1.5;
+
+                for (const item of bucket.items) {
+                    const str = item.str.trim();
+                    if (!str) continue;
+                    
+                    let wrappedStr = str;
+                    if (isBold(item.fontName)) {
+                        wrappedStr = `<strong>${wrappedStr}</strong>`;
+                    }
+                    if (isItalic(item.fontName)) {
+                        wrappedStr = `<em>${wrappedStr}</em>`;
+                    }
+
+                    lineHtml += `${wrappedStr} `;
+                }
+
+                if (isH1) {
+                    pageHtml += `<h1>${lineHtml.trim()}</h1>`;
+                } else if (isHeading) {
+                    pageHtml += `<h2>${lineHtml.trim()}</h2>`;
+                } else {
+                    pageHtml += `<p>${lineHtml.trim()}</p>`;
+                }
             }
-            lines.push('');
+            htmlParts.push(pageHtml);
         }
-        return lines.join('\n');
+        return `<div>${htmlParts.join('<br/><br/>')}</div>`;
     }
 
     if (fileType === 'docx') {
         const arrayBuffer = await response.arrayBuffer();
-        const result = await mammoth.extractRawText({ arrayBuffer });
-        return result.value.trim();
+        const result = await mammoth.convertToHtml({ arrayBuffer });
+        return result.value;
     }
 
     throw new Error('Unsupported file type');
@@ -138,5 +189,3 @@ export const getPublicUrlForUserFile = (userId: string, fileName: string): strin
     const { data } = supabase.storage.from('files').getPublicUrl(filePath);
     return data?.publicUrl ?? null;
 };
-
-

@@ -7,13 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { supabase } from '../supabase-client';
-import { convertFileUrlToText, deleteUserFile, getPublicUrlForUserFile, listUserFiles, uploadFilesForUser } from './file-service';
+import { convertFileUrlToHtml, deleteUserFile, getPublicUrlForUserFile, listUserFiles, uploadFilesForUser } from './file-service';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Loader2, Trash2, Eye } from "lucide-react";
 
 import { handleLogout } from '../supabase';
-
-
 
 interface UploadedFile {
     name: string;
@@ -96,7 +94,7 @@ export default function FileUploadForm() {
         }
         setIsUploading(true);
 
-        const results = await uploadFilesForUser(userId, files) as Array<{ success: boolean; original: string; error?: string; stored?: string }>; 
+        const results = await uploadFilesForUser(userId, files) as Array<{ success: boolean; original: string; error?: string; stored?: string }>;
         setIsUploading(false);
 
         const successfulUploads = results.filter(r => r.success).length;
@@ -143,24 +141,11 @@ export default function FileUploadForm() {
         setIsModalOpen(true);
 
         try {
-            const response = await fetch(fileUrl);
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-
-            if (fileType === 'pdf') {
-                // Delegate to service for conversion
-                const text = await convertFileUrlToText(fileUrl, 'pdf');
-                setModalContent(text);
-            } else if (fileType === 'docx') {
-                const text = await convertFileUrlToText(fileUrl, 'docx');
-                setModalContent(text);
-            } else {
-                setModalContent('This file type is not supported for text conversion.');
-            }
+            const html = await convertFileUrlToHtml(fileUrl, fileType);
+            setModalContent(html);
         } catch (error) {
             console.error('Conversion Error:', error);
-            setModalContent('Failed to convert file to text. Please try again.');
+            setModalContent('Failed to convert file. Please check the file format or try again.');
         } finally {
             setIsConverting(false);
         }
@@ -341,9 +326,40 @@ export default function FileUploadForm() {
                         <span className="mt-2">Converting file...</span>
                     </div>
                 ) : (
-                    <div className="h-full overflow-y-auto p-4 border rounded-md bg-gray-50 text-gray-700 whitespace-pre-wrap">
-                        {modalContent || 'No text content could be extracted or an error occurred.'}
-                    </div>
+                    <>
+                        <style jsx global>{`
+                            .document-content h1, .document-content h2, .document-content strong {
+                                font-weight: 500;
+                                color: #1a202c; /* A dark gray for good contrast */
+                            }
+                            .document-content h1 {
+                                font-size: 1.5em;
+                                margin-top: 1em;
+                                margin-bottom: 0.5em;
+                            }
+                            .document-content h2 {
+                                font-size: 2em;
+                                margin-top: 1em;
+                                margin-bottom: 0.5em;
+                            }
+                            .document-content p {
+                                font-size: 1em;
+                                line-height: 1.5;
+                                margin-bottom: 1em;
+                            }
+                            .document-content strong {
+                                font-size: 1.1em;
+                            }
+                            .document-content em {
+                                font-style: italic;
+                                color: #4a5568; /* A slightly lighter gray for contrast */
+                            }
+                        `}</style>
+                        <div
+                            className="h-full overflow-y-auto p-4 border rounded-md bg-gray-50 text-gray-700 document-content"
+                            dangerouslySetInnerHTML={{ __html: modalContent || 'No content could be extracted or an error occurred.' }}
+                        />
+                    </>
                 )}
             </Modal>
         </div>
