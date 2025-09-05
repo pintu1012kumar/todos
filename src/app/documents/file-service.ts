@@ -6,7 +6,7 @@ export interface UploadedFile {
   id: string;
 }
 
-// Minimal pdf.js types used in this module
+// Minimal pdf.js types 
 interface PdfTextItem {
   str: string;
   transform: number[];
