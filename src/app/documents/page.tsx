@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Label } from '@/components/ui/label';
@@ -10,6 +10,8 @@ import { supabase } from '../supabase-client';
 import { convertFileUrlToHtml, deleteUserFile, getPublicUrlForUserFile, listUserFiles, uploadFilesForUser } from './file-service';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Loader2, Trash2, Eye } from "lucide-react";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 import { handleLogout } from '../supabase';
 
@@ -34,6 +36,35 @@ export default function FileUploadForm() {
     const [modalContent, setModalContent] = useState('');
     const [modalTitle, setModalTitle] = useState('');
     const [isConverting, setIsConverting] = useState(false);
+
+    // Split modal content into HTML and Markdown segments (for tables)
+    const modalSegments = useMemo(() => {
+        if (!modalContent) return [] as Array<{ type: 'html' | 'md'; content: string; key: string }>;
+        const startTag = '<!--MD_TABLE_START-->';
+        const endTag = '<!--MD_TABLE_END-->';
+        if (!modalContent.includes(startTag)) {
+            return [{ type: 'html', content: modalContent, key: 'html-0' }];
+        }
+        const segments: Array<{ type: 'html' | 'md'; content: string; key: string }> = [];
+        let remaining = modalContent;
+        let index = 0;
+        while (remaining.length > 0) {
+            const sIdx = remaining.indexOf(startTag);
+            if (sIdx === -1) {
+                segments.push({ type: 'html', content: remaining, key: `html-${index++}` });
+                break;
+            }
+            if (sIdx > 0) {
+                segments.push({ type: 'html', content: remaining.slice(0, sIdx), key: `html-${index++}` });
+            }
+            const afterStart = remaining.slice(sIdx + startTag.length);
+            const eIdx = afterStart.indexOf(endTag);
+            const mdBlock = eIdx === -1 ? afterStart : afterStart.slice(0, eIdx);
+            segments.push({ type: 'md', content: mdBlock.trim(), key: `md-${index++}` });
+            remaining = eIdx === -1 ? '' : afterStart.slice(eIdx + endTag.length);
+        }
+        return segments;
+    }, [modalContent]);
 
     const fetchFiles = useCallback(async () => {
         if (!userId) return;
@@ -402,6 +433,8 @@ export default function FileUploadForm() {
         margin: 0;
         padding: 0;
     }
+    .pdf-content .pdf-title { text-align: center; font-weight: 700; font-size: 28px; margin: 6px 0 10px; }
+    .pdf-content .pdf-contact-line { text-align: center; color: #374151; font-size: 13px; margin-bottom: 12px; }
     .pdf-content span {
         display: inline;
         color: #000000; 
@@ -487,10 +520,19 @@ export default function FileUploadForm() {
         }
     }
 `}</style>
-                        <div
-                            className="h-full overflow-y-auto p-4 border rounded-md bg-gray-50 text-gray-700 document-content"
-                            dangerouslySetInnerHTML={{ __html: modalContent || 'No content could be extracted or an error occurred.' }}
-                        />
+                        <div className="h-full overflow-y-auto p-4 border rounded-md bg-gray-50 text-gray-700 document-content">
+                            {modalSegments.length === 0 ? (
+                                <div>No content could be extracted or an error occurred.</div>
+                            ) : (
+                                modalSegments.map(seg => seg.type === 'md' ? (
+                                    <div key={seg.key} className="my-3 md-table">
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{seg.content}</ReactMarkdown>
+                                    </div>
+                                ) : (
+                                    <div key={seg.key} dangerouslySetInnerHTML={{ __html: seg.content }} />
+                                ))
+                            )}
+                        </div>
                     </>
                 )}
             </Modal>

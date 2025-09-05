@@ -234,7 +234,7 @@ export const convertFileUrlToHtml = async (
             firstRowText
           );
 
-        let md = "<!--MD_TABLE_START-->\n";
+        let md = "<!--MD_TABLE_START-->\n\n";
         // Always render as 2-column markdown for skills
         md += `| Category | Details |\n| --- | --- |\n`;
         table.rows.forEach((row) => {
@@ -251,7 +251,7 @@ export const convertFileUrlToHtml = async (
             md += `|  | ${rowText} |\n`;
           }
         });
-        md += "<!--MD_TABLE_END-->";
+        md += "\n\n<!--MD_TABLE_END-->";
         return md;
       };
 
@@ -296,15 +296,29 @@ export const convertFileUrlToHtml = async (
           }
         }
 
-        // Identify and apply specific styles to key headings
+        // Identify and apply specific styles to title, contact and headings
         let customStyle = "";
         let customClassName = "";
 
-        if (
+        const lineIndex = lines.indexOf(line);
+        const looksLikeName = /^[A-Z][a-z]+\s+[A-Z][a-z]+$/.test(lineText) && lineIndex <= 2;
+        const looksLikeContact =
+          (lineText.includes("@") || /\d{7,}/.test(lineText) || /(LinkedIn|Twitter|GitHub)/i.test(lineText)) &&
+          lineIndex <= 6;
+
+        if (looksLikeName) {
+          customClassName = "pdf-title";
+          customStyle = `font-size: 28px; font-weight: 700; text-align: center; margin: 6px 0 10px;`;
+        } else if (looksLikeContact) {
+          customClassName = "pdf-contact-line";
+          customStyle = `font-size: 13px; color: #374151; text-align: center; margin-bottom: 12px;`;
+        } else if (
           lineText.includes("TECHNICAL SKILLS") ||
-          lineText.includes("Experience")
+          lineText.includes("Experience") ||
+          lineText.includes("Projects") ||
+          lineText.includes("Education")
         ) {
-          customStyle = `font-size: 23.9103px; font-weight: normal;`;
+          customStyle = `font-size: 16px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase; border-bottom: 2px solid #000; padding-bottom: 4px; margin: 14px 0 8px;`;
           customClassName = "pdf-heading";
         }
 
