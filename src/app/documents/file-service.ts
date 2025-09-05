@@ -6,6 +6,21 @@ export interface UploadedFile {
   id: string;
 }
 
+// Common constants and precompiled regexes to avoid re-allocation on every line
+const MD_TABLE_START = "<!--MD_TABLE_START-->";
+const MD_TABLE_END = "<!--MD_TABLE_END-->";
+const SKILL_KEYS = [
+  "Programming Languages",
+  "Frameworks",
+  "Tools",
+  "UI Tools",
+  "ORM and Database",
+  "Cloud and Platforms",
+] as const;
+const SKILL_LINE_RE = /^(Programming Languages|Frameworks|Tools|UI Tools|ORM and Database|Cloud and Platforms):/;
+const CONTACT_RE = /@|twitter|linkedin|github|\d{7,}|\.com/i;
+const SECTION_RE = /(technical skills|experience|projects|education)/i;
+
 // Minimal pdf.js types 
 interface PdfTextItem {
   str: string;
@@ -126,7 +141,10 @@ export const convertFileUrlToHtml = async (
 
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
+      const content = await page.getTextContent({
+        normalizeWhitespace: true,
+        disableCombineTextItems: false,
+      });
       const items = content.items as PdfTextItem[];
 
       // Group items by lines with better tolerance
@@ -160,38 +178,11 @@ export const convertFileUrlToHtml = async (
         items: PdfTextItem[];
       }): boolean => {
         if (line.items.length < 2) return false;
-
-        const lineText = line.items
-          .map((item) => item.str)
-          .join(" ")
-          .trim();
+        const lineText = line.items.map((it) => it.str).join(" ").trim();
+        const lineLower = lineText.toLowerCase();
 
         // Check for skill section patterns (Programming Languages:, Frameworks:, etc.)
-        const isSkillSection =
-          /^(Programming Languages|Frameworks|Tools|UI Tools|ORM and Database|Cloud and Platforms):/.test(
-            lineText
-          );
-
-        // Check for contact info patterns
-        const isContactInfo =
-          /^[^:]+@[^:]+|^\d{10}|\.com|Twitter|LinkedIn|GitHub/.test(lineText);
-
-        // Check for experience patterns
-        const isExperience =
-          /(Intern|Full stack|June|March|May|July|present|on-site|Remote)/.test(
-            lineText
-          );
-
-        // Check for project patterns
-        const isProject = /^\d+x[A-Za-z]+|Tech Stack|Live Link|GitHub/.test(
-          lineText
-        );
-
-        // Check for education patterns
-        const isEducation =
-          /(Engineering|College|University|B-tech|Higher Secondary)/.test(
-            lineText
-          );
+        const isSkillSection = SKILL_LINE_RE.test(lineText);
 
         // Check if items are spread horizontally (table-like)
         const firstX = line.items[0].transform[4];
@@ -234,7 +225,7 @@ export const convertFileUrlToHtml = async (
             firstRowText
           );
 
-        let md = "<!--MD_TABLE_START-->\n\n";
+        let md = `${MD_TABLE_START}\n\n`;
         // Always render as 2-column markdown for skills
         md += `| Category | Details |\n| --- | --- |\n`;
         table.rows.forEach((row) => {
@@ -251,7 +242,7 @@ export const convertFileUrlToHtml = async (
             md += `|  | ${rowText} |\n`;
           }
         });
-        md += "\n\n<!--MD_TABLE_END-->";
+        md += `\n\n${MD_TABLE_END}`;
         return md;
       };
 
@@ -302,9 +293,7 @@ export const convertFileUrlToHtml = async (
 
         const lineIndex = lines.indexOf(line);
         const looksLikeName = /^[A-Z][a-z]+\s+[A-Z][a-z]+$/.test(lineText) && lineIndex <= 2;
-        const looksLikeContact =
-          (lineText.includes("@") || /\d{7,}/.test(lineText) || /(LinkedIn|Twitter|GitHub)/i.test(lineText)) &&
-          lineIndex <= 6;
+        const looksLikeContact = CONTACT_RE.test(lineText) && lineIndex <= 6;
 
         if (looksLikeName) {
           customClassName = "pdf-title";
@@ -312,12 +301,7 @@ export const convertFileUrlToHtml = async (
         } else if (looksLikeContact) {
           customClassName = "pdf-contact-line";
           customStyle = `font-size: 13px; color: #374151; text-align: center; margin-bottom: 12px;`;
-        } else if (
-          lineText.includes("TECHNICAL SKILLS") ||
-          lineText.includes("Experience") ||
-          lineText.includes("Projects") ||
-          lineText.includes("Education")
-        ) {
+        } else if (SECTION_RE.test(lineText)) {
           customStyle = `font-size: 16px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase; border-bottom: 2px solid #000; padding-bottom: 4px; margin: 14px 0 8px;`;
           customClassName = "pdf-heading";
         }
