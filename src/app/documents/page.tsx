@@ -327,34 +327,166 @@ export default function FileUploadForm() {
                     </div>
                 ) : (
                     <>
-                        <style jsx global>{`
-                            .document-content h1, .document-content h2, .document-content strong {
-                                font-weight: 500;
-                                color: #1a202c; /* A dark gray for good contrast */
-                            }
-                            .document-content h1 {
-                                font-size: 1.5em;
-                                margin-top: 1em;
-                                margin-bottom: 0.5em;
-                            }
-                            .document-content h2 {
-                                font-size: 2em;
-                                margin-top: 1em;
-                                margin-bottom: 0.5em;
-                            }
-                            .document-content p {
-                                font-size: 1em;
-                                line-height: 1.5;
-                                margin-bottom: 1em;
-                            }
-                            .document-content strong {
-                                font-size: 1.1em;
-                            }
-                            .document-content em {
-                                font-style: italic;
-                                color: #4a5568; /* A slightly lighter gray for contrast */
-                            }
-                        `}</style>
+  <style jsx global>{`
+    /* General styling for converted document content */
+    .document-content {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: #333;
+        line-height: 1.4;
+        background: white;
+        padding: 20px;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    /* Styles for Mammoth DOCX output */
+    .docx-content h1, .docx-content h2, .docx-content h3, .docx-content h4 {
+        font-weight: 700;
+        color: #000000;
+        margin-top: 1.5em;
+        margin-bottom: 0.5em;
+    }
+    .docx-content h1 { font-size: 2.5em; }
+    .docx-content h2 { font-size: 2em; }
+    .docx-content h3 { font-size: 1.5em; }
+    .docx-content h4 { font-size: 1.25em; }
+    .docx-content p, .docx-content li {
+        margin-bottom: 1em;
+    }
+    .docx-content ul, .docx-content ol {
+        padding-left: 2em;
+        margin-bottom: 1em;
+    }
+    
+    /* Enhanced table styling for DOCX */
+    .docx-content table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 16px 0;
+        border: 2px solid #333;
+        background: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .docx-content table td, .docx-content table th {
+        border: 1px solid #333;
+        padding: 8px 12px;
+        text-align: left;
+        vertical-align: top;
+    }
+    
+    .docx-content table th {
+        background-color: #4a5568;
+        color: white;
+        font-weight: 600;
+        text-align: center;
+    }
+    
+    .docx-content table tr:nth-child(even) {
+        background-color: #f8f9fa;
+    }
+    
+    .docx-content table tr:hover {
+        background-color: #e9ecef;
+    }
+    
+    .docx-content table caption {
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #333;
+    }
+
+    /* Styles for custom PDF HTML output */
+    .pdf-content div {
+        display: block;
+        margin: 0;
+        padding: 0;
+    }
+    .pdf-content span {
+        display: inline;
+        color: #000000; 
+        /* Bolder and darker for specific sections in PDF */
+        font-weight: 700;
+        font-size: 1.2em;
+    }
+    
+    /* Specific overrides for your heading sections */
+    .pdf-content span:has(> strong) {
+      font-weight: 900 !important;
+      color: #000000;
+      font-size: 1.2em;
+    }
+    
+    /* Enhanced table styling for PDF */
+    .pdf-table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 16px 0;
+        border: 2px solid #333;
+        background: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        font-size: 12px;
+    }
+    
+    .pdf-table td, .pdf-table th {
+        border: 1px solid #333;
+        padding: 8px 12px;
+        text-align: left;
+        vertical-align: top;
+        background: white;
+    }
+    
+    .pdf-table th {
+        background-color: #4a5568;
+        color: white;
+        font-weight: 600;
+        text-align: center;
+    }
+    
+    .pdf-table tr:nth-child(even) {
+        background-color: #f8f9fa;
+    }
+    
+    .pdf-table tr:nth-child(even) td {
+        background-color: #f8f9fa;
+    }
+    
+    .pdf-table tr:hover {
+        background-color: #e9ecef;
+    }
+    
+    .pdf-table tr:hover td {
+        background-color: #e9ecef;
+    }
+    
+    /* Special styling for table headers in PDF */
+    .pdf-table thead th {
+        background-color: #2d3748;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    /* Table caption styling */
+    .pdf-table caption {
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #333;
+        font-size: 14px;
+    }
+    
+    /* Responsive table styling */
+    @media (max-width: 768px) {
+        .pdf-table, .docx-content table {
+            font-size: 10px;
+        }
+        
+        .pdf-table td, .pdf-table th, 
+        .docx-content table td, .docx-content table th {
+            padding: 4px 6px;
+        }
+    }
+`}</style>
                         <div
                             className="h-full overflow-y-auto p-4 border rounded-md bg-gray-50 text-gray-700 document-content"
                             dangerouslySetInnerHTML={{ __html: modalContent || 'No content could be extracted or an error occurred.' }}
