@@ -6,18 +6,6 @@ export interface UploadedFile {
   id: string;
 }
 
-// Common constants and precompiled regexes to avoid re-allocation on every line
-const MD_TABLE_START = "<!--MD_TABLE_START-->";
-const MD_TABLE_END = "<!--MD_TABLE_END-->";
-const SKILL_KEYS = [
-  "Programming Languages",
-  "Frameworks",
-  "Tools",
-  "UI Tools",
-  "ORM and Database",
-  "Cloud and Platforms",
-] as const;
-const SKILL_LINE_RE = /^(Programming Languages|Frameworks|Tools|UI Tools|ORM and Database|Cloud and Platforms):/;
 const CONTACT_RE = /@|twitter|linkedin|github|\d{7,}|\.com/i;
 const SECTION_RE = /(technical skills|experience|projects|education)/i;
 
@@ -79,11 +67,10 @@ export const loadPdfJsFromCdn = (): Promise<PdfJsLib> => {
   return pdfjsLoader;
 };
 
-// Enhanced function to get CSS styles from font properties
+// Helper: Get CSS styles from font properties
 const getStyleFromFont = (item: PdfTextItem): string => {
   let styles = "";
-  const scalingFactor = 1.0; // More accurate scaling
-  const fontSize = Math.max(8, item.transform[3] * scalingFactor); // Minimum font size
+  const fontSize = Math.max(12, item.transform[3]);
   const isBold =
     item.fontName.toLowerCase().includes("bold") ||
     item.fontName.toLowerCase().includes("black") ||
@@ -97,12 +84,9 @@ const getStyleFromFont = (item: PdfTextItem): string => {
   if (isItalic) {
     styles += "font-style: italic; ";
   }
-
-  // Add font family if available
   if (item.fontName && !item.fontName.includes("+")) {
     styles += `font-family: "${item.fontName}", Arial, sans-serif; `;
   }
-
   return styles;
 };
 
@@ -147,10 +131,9 @@ export const convertFileUrlToHtml = async (
       });
       const items = content.items as PdfTextItem[];
 
-      // Group items by lines with better tolerance
+      // Group items by lines (Y position)
       const lines: { y: number; items: PdfTextItem[] }[] = [];
-      const tolerance = 3; // Increased tolerance for better line grouping
-
+      const tolerance = 2;
       items.forEach((it: PdfTextItem) => {
         const [, , , , , y] = it.transform as number[];
         let line = lines.find((l) => Math.abs(l.y - y) <= tolerance);
@@ -160,184 +143,105 @@ export const convertFileUrlToHtml = async (
         }
         line.items.push(it);
       });
-
-      // Sort lines from top to bottom
       lines.sort((a, b) => b.y - a.y);
 
-      let pageHtml = "";
-      let currentSection = "";
-      let tableData: {
-        rows: PdfTextItem[][];
-        startY: number;
-        endY: number;
-      } | null = null;
-
-      // Function to detect if a line looks like a table row
-      const isTableRow = (line: {
-        y: number;
-        items: PdfTextItem[];
-      }): boolean => {
+      // Table detection helpers
+      const isTableRow = (line: { items: PdfTextItem[] }) => {
         if (line.items.length < 2) return false;
-        const lineText = line.items.map((it) => it.str).join(" ").trim();
-        const lineLower = lineText.toLowerCase();
-
-        // Check for skill section patterns (Programming Languages:, Frameworks:, etc.)
-        const isSkillSection = SKILL_LINE_RE.test(lineText);
-
-        // Check if items are spread horizontally (table-like)
-        const firstX = line.items[0].transform[4];
-        const lastX = line.items[line.items.length - 1].transform[4];
-        const spread = lastX - firstX;
-
-        // Check for common table patterns
-        const hasNumbers = /\d+/.test(lineText);
-        const hasColons = lineText.includes(":");
-        const hasMultipleWords = lineText.split(/\s+/).length >= 2;
-        const hasTableKeywords =
-          /(college|university|students|graduating|change|item|needed|total|undergraduate|graduate)/i.test(
-            lineText
-          );
-        const hasTableStructure =
-          lineText.includes(":") ||
-          !!lineText.match(/\d+\s*[-+]\s*\d+/) ||
-          !!lineText.match(/\w+\s*:\s*\d+/);
-
-        // Restrict to skill section lines only for markdown table rendering
-        return isSkillSection;
+        let prevX = line.items[0].transform[4];
+        let colGaps = 0;
+        for (let i = 1; i < line.items.length; i++) {
+          const x = line.items[i].transform[4];
+          if (x - prevX > 40) colGaps++;
+          prevX = x;
+        }
+        return colGaps >= 1;
       };
 
-      // Function to render table
-      const renderTable = (table: {
-        rows: PdfTextItem[][];
-        startY: number;
-        endY: number;
-      }): string => {
-        if (table.rows.length === 0) return "";
-
-        // We will return a markdown table wrapped with markers to be
-        // post-processed by ReactMarkdown in the viewer.
-        const firstRowText = table.rows[0]
-          .map((item) => item.str)
-          .join(" ")
-          .trim();
-        const isSkillTable =
-          /^(Programming Languages|Frameworks|Tools|UI Tools|ORM and Database|Cloud and Platforms):/.test(
-            firstRowText
-          );
-
-        let md = `${MD_TABLE_START}\n\n`;
-        // Always render as 2-column markdown for skills
-        md += `| Category | Details |\n| --- | --- |\n`;
-        table.rows.forEach((row) => {
-          const rowText = row
-            .map((item) => item.str)
-            .join(" ")
-            .trim();
-          const colonIndex = rowText.indexOf(":");
-          if (colonIndex > -1) {
-            const category = rowText.substring(0, colonIndex).trim();
-            const skills = rowText.substring(colonIndex + 1).trim();
-            md += `| ${category} | ${skills} |\n`;
-          } else {
-            md += `|  | ${rowText} |\n`;
+      const renderTable = (rows: PdfTextItem[][]) => {
+        let html = `<table class="pdf-table" style="margin:16px 0;width:100%;border-collapse:collapse;">`;
+        for (const row of rows) {
+          html += "<tr>";
+          for (const cell of row) {
+            const isBold = cell.fontName.toLowerCase().includes("bold");
+            html += `<td style="border:1px solid #333;padding:6px 8px;font-size:13px;${isBold ? "font-weight:700;" : ""}">${cell.str}</td>`;
           }
-        });
-        md += `\n\n${MD_TABLE_END}`;
-        return md;
+          html += "</tr>";
+        }
+        html += "</table>";
+        return html;
       };
 
-      for (const line of lines) {
-        // Sort items left to right
-        line.items.sort((a, b) => a.transform[4] - b.transform[4]);
-        let lineText = line.items
-          .map((item) => item.str)
-          .join(" ")
-          .trim();
+      let pageHtml = "";
+      let tableRows: PdfTextItem[][] = [];
 
+      for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+        const line = lines[lineIdx];
+        line.items.sort((a, b) => a.transform[4] - b.transform[4]);
+        const lineText = line.items.map((item) => item.str).join(" ").trim();
         if (!lineText) continue;
 
-        // Check if this line is part of a table
         if (isTableRow(line)) {
-          if (!tableData) {
-            tableData = { rows: [], startY: line.y, endY: line.y };
+          tableRows.push(line.items);
+          // If next line is not a table row or end of lines, render the table
+          const nextLine = lines[lineIdx + 1];
+          if (!nextLine || !isTableRow(nextLine)) {
+            if (tableRows.length > 0) {
+              pageHtml += renderTable(tableRows);
+            }
+            tableRows = [];
           }
-          tableData.rows.push(line.items);
-          tableData.endY = line.y;
-          continue; // Skip normal processing for table rows
-        } else if (tableData) {
-          // Check if we should continue the table (for skill sections)
-          const lineText = line.items
-            .map((item) => item.str)
-            .join(" ")
-            .trim();
-          const isSkillContinuation =
-            /^(Programming Languages|Frameworks|Tools|UI Tools|ORM and Database|Cloud and Platforms):/.test(
-              lineText
-            );
-
-          if (isSkillContinuation) {
-            // Continue the table
-            tableData.rows.push(line.items);
-            tableData.endY = line.y;
-            continue;
-          } else {
-            // End of table, render it
-            pageHtml += renderTable(tableData);
-            tableData = null;
-          }
+          continue;
         }
 
-        // Identify and apply specific styles to title, contact and headings
+        // Not a table row, render any pending table
+        if (tableRows.length > 0) {
+          pageHtml += renderTable(tableRows);
+          tableRows = [];
+        }
+
+        // Render normal line with bold/spacing if needed
         let customStyle = "";
         let customClassName = "";
-
-        const lineIndex = lines.indexOf(line);
-        const looksLikeName = /^[A-Z][a-z]+\s+[A-Z][a-z]+$/.test(lineText) && lineIndex <= 2;
-        const looksLikeContact = CONTACT_RE.test(lineText) && lineIndex <= 6;
-
-        if (looksLikeName) {
-          customClassName = "pdf-title";
-          customStyle = `font-size: 28px; font-weight: 700; text-align: center; margin: 6px 0 10px;`;
-        } else if (looksLikeContact) {
-          customClassName = "pdf-contact-line";
-          customStyle = `font-size: 13px; color: #374151; text-align: center; margin-bottom: 12px;`;
-        } else if (SECTION_RE.test(lineText)) {
-          customStyle = `font-size: 16px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase; border-bottom: 2px solid #000; padding-bottom: 4px; margin: 14px 0 8px;`;
-          customClassName = "pdf-heading";
+        const isHeader =
+          line.items.length === 1 &&
+          (line.items[0].fontName.toLowerCase().includes("bold") ||
+            line.items[0].fontName.toLowerCase().includes("black"));
+        if (isHeader) {
+          customStyle =
+            "font-size:18px;font-weight:700;margin:12px 0 4px;text-align:left;";
         }
-
         let lineHtml = "";
         line.items.forEach((item, index) => {
           const str = item.str;
           if (!str.trim()) return;
-
-          const style = getStyleFromFont(item);
+          const isBold = item.fontName.toLowerCase().includes("bold");
+          const style = `font-size:${Math.max(
+            12,
+            item.transform[3]
+          )}px;${isBold ? "font-weight:700;" : ""}`;
           const previousItem = line.items[index - 1];
           let spacing = "";
-
-          // Calculate spacing between words
           if (previousItem) {
             const prevX = previousItem.transform[4] + previousItem.width;
             const currentX = item.transform[4];
             const spaceWidth = currentX - prevX;
             if (spaceWidth > 2) {
-              spacing = `<span style="display: inline-block; width: ${Math.min(
+              spacing = `<span style="display:inline-block;width:${Math.min(
                 spaceWidth,
                 20
               )}px;"></span>`;
             }
           }
-
           lineHtml += `${spacing}<span style="${style}">${str}</span>`;
         });
 
-        // Wrap each line in appropriate container
         pageHtml += `<div style="${customStyle}" class="${customClassName}">${lineHtml}</div>`;
       }
 
-      // Render any remaining table
-      if (tableData) {
-        pageHtml += renderTable(tableData);
+      // Render any remaining table at the end of the page
+      if (tableRows.length > 0) {
+        pageHtml += renderTable(tableRows);
       }
 
       htmlParts.push(pageHtml);
@@ -359,7 +263,7 @@ export const listUserFiles = async (
 ): Promise<UploadedFile[]> => {
   const folderPath = `documents/${userId}/`;
   const { data, error } = await supabase.storage.from("files").list(folderPath);
-  if (error) throw error; // Supabase StorageObject does not guarantee an id field; fall back to name
+  if (error) throw error;
   type MaybeWithId = { name: string; id?: string };
   return (data || []).map((f) => {
     const obj = f as unknown as MaybeWithId;
@@ -369,14 +273,12 @@ export const listUserFiles = async (
 
 export const uploadFilesForUser = async (userId: string, files: FileList) => {
   const uploadPromises = Array.from(files).map(async (file: File) => {
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${Date.now()}-${Math.random()
-      .toString(36)
-      .substring(7)}.${fileExt}`;
+    // Use the original file name directly
+    const fileName = file.name;
     const filePath = `documents/${userId}/${fileName}`;
     const { data, error } = await supabase.storage
       .from("files")
-      .upload(filePath, file);
+      .upload(filePath, file, { upsert: true }); // upsert allows overwriting if needed
     if (error)
       return { success: false, original: file.name, error: error.message };
     return { success: true, original: file.name, stored: fileName, data };

@@ -1,5 +1,4 @@
 "use client";
-//h
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "../supabase-client";
 import { fetchTodos, insertTodo, updateTodo, deleteTodo, handleLogout } from '../supabase';
 import Link from "next/link";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Import Alert components
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface Todo {
   id: string;
@@ -24,7 +23,6 @@ interface NewTodo {
   description: string;
 }
 
-// Define the character limits
 const MAX_TITLE_LENGTH = 50;
 const MAX_DESCRIPTION_LENGTH = 200;
 
@@ -34,7 +32,9 @@ export default function TodoPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [user, setUser] = useState<User | null>(null);
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
-  const [error, setError] = useState<string>(""); // Add state for error messages
+  const [error, setError] = useState<string>("");
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [todoToDelete, setTodoToDelete] = useState<Todo | null>(null);
   const router = useRouter();
 
   const handleFetchTodos = async () => {
@@ -46,7 +46,6 @@ export default function TodoPage() {
     const { name, value } = e.target;
     let newErrors = "";
 
-    // Check for character limits
     if (name === "title" && value.length > MAX_TITLE_LENGTH) {
       newErrors = `Title must be ${MAX_TITLE_LENGTH} characters or less.`;
     } else if (name === "description" && value.length > MAX_DESCRIPTION_LENGTH) {
@@ -60,27 +59,20 @@ export default function TodoPage() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
-    // Prevent submission if there's an active error
-    if (error) {
-      return;
-    }
+    if (error) return;
 
     let success = false;
-    
-    // Check if we are in "edit" mode
     if (editingTodo) {
       success = await updateTodo(editingTodo.id, newTodo);
     } else {
       success = await insertTodo(newTodo);
     }
-    
+
     if (success) {
       setNewTodo({ title: "", description: "" });
       setEditingTodo(null);
       handleFetchTodos();
     } else {
-      // Set a more specific error message on submission failure
       setError("Failed to save todo. Please try again.");
       console.error("Failed to save todo.");
     }
@@ -89,7 +81,7 @@ export default function TodoPage() {
   const startEdit = (todo: Todo) => {
     setEditingTodo(todo);
     setNewTodo({ title: todo.title, description: todo.description });
-    setError(""); // Clear any previous errors when starting an edit
+    setError("");
   };
 
   const cancelEdit = () => {
@@ -98,11 +90,28 @@ export default function TodoPage() {
     setError("");
   };
 
-  const handleDelete = async (id: string) => {
-    const success = await deleteTodo(id);
-    if (success) {
-      handleFetchTodos();
+  // Show confirmation modal for delete
+  const handleDeleteClick = (todo: Todo) => {
+    setTodoToDelete(todo);
+    setShowConfirmModal(true);
+  };
+
+  // Confirm delete action
+  const confirmDelete = async () => {
+    if (todoToDelete) {
+      const success = await deleteTodo(todoToDelete.id);
+      if (success) {
+        handleFetchTodos();
+      }
+      setShowConfirmModal(false);
+      setTodoToDelete(null);
     }
+  };
+
+  // Cancel delete action
+  const cancelDelete = () => {
+    setShowConfirmModal(false);
+    setTodoToDelete(null);
   };
 
   const handleUserLogout = async () => {
@@ -124,9 +133,6 @@ export default function TodoPage() {
         setLoading(false);
       }
     );
-
-    // This effect ensures we reset the state when the component unmounts
-    // or when the user changes, preventing stale data.
     return () => {
       subscription.unsubscribe();
     };
@@ -136,13 +142,47 @@ export default function TodoPage() {
     return null;
   }
 
+  const handleBackToDocuments = () => {
+    router.push("/documents");
+  };
+
+  // Confirmation Modal component
+  const ConfirmModal = ({
+    isOpen,
+    message,
+    onConfirm,
+    onCancel,
+  }: {
+    isOpen: boolean;
+    message: string;
+    onConfirm: () => void;
+    onCancel: () => void;
+  }) => {
+    if (!isOpen) return null;
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+        <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6 flex flex-col">
+          <h3 className="text-lg font-semibold mb-4">Confirm Deletion</h3>
+          <p className="text-gray-700 mb-6">{message}</p>
+          <div className="flex justify-end gap-3">
+            <Button onClick={onCancel} variant="outline">
+              Cancel
+            </Button>
+            <Button onClick={onConfirm} variant="destructive">
+              Delete
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div className="flex flex-col gap-6 p-8 max-w-7xl mx-auto">
+    <div className="flex flex-col gap-6 p-4 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold">Todo App</h1>
-        <Link href="/documents" passHref>
-          <Button variant="default">documents upload</Button>
-        </Link>
+        <Button onClick={handleBackToDocuments} variant="secondary" size="sm">
+          documents upload
+        </Button>
         <Button onClick={handleUserLogout} variant="outline" size="sm">
           Logout
         </Button>
@@ -211,17 +251,23 @@ export default function TodoPage() {
                   className="p-4 rounded-lg border border-gray-200 shadow-sm"
                 >
                   <div className="flex justify-between items-center">
-                    <h3 className="font-semibold">{todo.title}</h3>
-                    <div className="flex gap-2">
+                    <h3 className="font-semibold flex-grow truncate">{todo.title}</h3>
+                    <div className="flex gap-2 flex-shrink-0">
                       <Button onClick={() => startEdit(todo)} variant="ghost" size="sm">
                         Edit
                       </Button>
-                      <Button onClick={() => handleDelete(todo.id)} variant="destructive" size="sm">
+                      <Button
+                        onClick={() => handleDeleteClick(todo)}
+                        variant="destructive"
+                        size="sm"
+                      >
                         Delete
                       </Button>
                     </div>
                   </div>
-                  <p className="text-sm text-gray-600">{todo.description}</p>
+                  <p className="text-sm text-gray-600 break-words whitespace-pre-line max-w-full">
+                    {todo.description}
+                  </p>
                 </li>
               ))}
             </ul>
@@ -230,6 +276,17 @@ export default function TodoPage() {
           )}
         </div>
       </div>
-    </div>
-  );
+      {/* Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        message={
+          todoToDelete
+            ? `Are you sure you want to delete "${todoToDelete.title}"? This action cannot be undone.`
+            : ""
+        }
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+      />
+    </div> 
+  );  
 }

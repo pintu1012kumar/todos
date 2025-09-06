@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supabase } from "../supabase-client";
-import type { User } from '@supabase/supabase-js';
+import type { User } from "@supabase/supabase-js";
 import {
   convertFileUrlToHtml,
   deleteUserFile,
@@ -124,23 +124,23 @@ export default function FileUploadForm() {
   }, [userId]);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (event === 'SIGNED_OUT' || !session) {
-          setUser(null);
-          setUserId(null);
-          setUploadedFiles([]);
-          setFiles(null);
-          setSuccessMessage("");
-          setErrorMessages([]);
-          router.push('/login');
-        } else {
-          setUser(session.user);
-          setUserId(session.user.id);
-        }
-        setLoading(false);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT" || !session) {
+        setUser(null);
+        setUserId(null);
+        setUploadedFiles([]);
+        setFiles(null);
+        setSuccessMessage("");
+        setErrorMessages([]);
+        router.push("/login");
+      } else {
+        setUser(session.user);
+        setUserId(session.user.id);
       }
-    );
+      setLoading(false);
+    });
 
     return () => {
       subscription.unsubscribe();
@@ -165,9 +165,6 @@ export default function FileUploadForm() {
     return () => clearTimeout(timerId);
   }, [errorMessages]);
 
-
-
-  
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       setFiles(e.target.files);
@@ -278,23 +275,23 @@ export default function FileUploadForm() {
   }) => {
     if (!isOpen) return null;
 
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-        <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm w-full">
-          <h3 className="text-lg font-semibold mb-4">Confirm Deletion</h3>
-          <p className="text-gray-700 mb-6">{message}</p>
-          <div className="flex justify-end gap-3">
-            <Button onClick={onCancel} variant="outline">
-              Cancel
-            </Button>
-            <Button onClick={onConfirm} variant="destructive">
-              Delete
-            </Button>
-          </div>
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6 flex flex-col">
+        <h3 className="text-lg font-semibold mb-4">Confirm Deletion</h3>
+        <p className="text-gray-700 mb-6">{message}</p>
+        <div className="flex justify-end gap-3">
+          <Button onClick={onCancel} variant="outline">
+            Cancel
+          </Button>
+          <Button onClick={onConfirm} variant="destructive">
+            Delete
+          </Button>
         </div>
       </div>
-    );
-  };
+    </div>
+  );
+};
 
   const convertAndDisplay = async (
     fileUrl: string,
@@ -347,36 +344,36 @@ export default function FileUploadForm() {
     router.push("/todo");
   };
 
-  const Modal = ({
-    isOpen,
-    title,
-    onClose,
-    children,
-  }: {
-    isOpen: boolean;
-    title: string;
-    onClose: () => void;
-    children: React.ReactNode;
-  }) => {
-    if (!isOpen) return null;
+const Modal = ({
+  isOpen,
+  title,
+  onClose,
+  children,
+}: {
+  isOpen: boolean;
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) => {
+  if (!isOpen) return null;
 
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-        <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl h-3/4 p-6 flex flex-col">
-          <div className="flex justify-between items-center border-b pb-4 mb-4">
-            <h2 className="text-xl font-semibold">{title}</h2>
-            <button
-              onClick={onClose}
-              className="text-gray-500 hover:text-gray-800 transition"
-            >
-              &times;
-            </button>
-          </div>
-          <div className="flex-1 overflow-y-auto">{children}</div>
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl h-[90vh] p-6 flex flex-col">
+        <div className="flex justify-between items-center border-b pb-4 mb-4">
+          <h2 className="text-xl font-semibold">{title}</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-800 transition"
+          >
+            &times;
+          </button>
         </div>
+        <div className="flex-1 overflow-y-auto">{children}</div>
       </div>
-    );
-  };
+    </div>
+  );
+};
 
   if (!user && !loading) {
     return null;
@@ -384,7 +381,34 @@ export default function FileUploadForm() {
 
   return (
     <div className="w-full max-w-5xl mx-auto p-4">
-      <div className="flex justify-between items-center mb-4">
+      {/* Toast Alerts */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3 items-end">
+        {successMessage && (
+          <Alert className="border-green-300 bg-green-50 shadow-lg min-w-[250px]">
+            <AlertTitle className="text-green-800">Success</AlertTitle>
+            <AlertDescription className="text-green-700">
+              {successMessage}
+            </AlertDescription>
+          </Alert>
+        )}
+        {errorMessages.length > 0 && (
+          <Alert
+            variant="destructive"
+            className="border-red-300 bg-red-50 shadow-lg min-w-[250px]"
+          >
+            <AlertTitle className="text-red-800">Upload failed</AlertTitle>
+            <AlertDescription className="text-red-700">
+              <ul className="list-disc pl-5 space-y-1">
+                {errorMessages.map((msg, idx) => (
+                  <li key={idx}>{msg}</li>
+                ))}
+              </ul>
+            </AlertDescription>
+          </Alert>
+        )}
+      </div>
+
+      <div className="flex justify-between items-center mb-8">
         <Button onClick={handleBackToTodo} variant="secondary" size="sm">
           Back to Todo
         </Button>
@@ -400,36 +424,11 @@ export default function FileUploadForm() {
             <CardHeader>
               <CardTitle>File Upload</CardTitle>
               <CardDescription>
-                Upload PDF, DOCX, Jpg, Png and other files to your Supabase
-                storage.
+                Upload PDF, DOCX, Jpg, and Png to your Supabase storage.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {successMessage && (
-                <Alert className="border-green-300 bg-green-50">
-                  <AlertTitle className="text-green-800">Success</AlertTitle>
-                  <AlertDescription className="text-green-700">
-                    {successMessage}
-                  </AlertDescription>
-                </Alert>
-              )}
-              {errorMessages.length > 0 && (
-                <Alert
-                  variant="destructive"
-                  className="border-red-300 bg-red-50"
-                >
-                  <AlertTitle className="text-red-800">
-                    Upload failed
-                  </AlertTitle>
-                  <AlertDescription className="text-red-700">
-                    <ul className="list-disc pl-5 space-y-1">
-                      {errorMessages.map((msg, idx) => (
-                        <li key={idx}>{msg}</li>
-                      ))}
-                    </ul>
-                  </AlertDescription>
-                </Alert>
-              )}
+              {/* Alerts removed from here */}
               <div className="space-y-2">
                 <Label htmlFor="files">Select Files</Label>
                 <Input
@@ -459,6 +458,7 @@ export default function FileUploadForm() {
             </CardFooter>
           </Card>
         </div>
+
         <div>
           <Card className="border border-gray-200 shadow-sm">
             <CardHeader className="pb-2">
