@@ -9,7 +9,7 @@ export interface UploadedFile {
 const CONTACT_RE = /@|twitter|linkedin|github|\d{7,}|\.com/i;
 const SECTION_RE = /(technical skills|experience|projects|education)/i;
 
-// Minimal pdf.js types 
+// Minimal pdf.js types
 interface PdfTextItem {
   str: string;
   transform: number[];
@@ -252,19 +252,29 @@ export const convertFileUrlToHtml = async (
   if (fileType === "docx") {
     const arrayBuffer = await response.arrayBuffer();
 
-    // Enhanced mammoth conversion with image handling
-    const result = await mammoth.convertToHtml({
+    // Define a stricter type for options
+    interface MammothOptions {
+      arrayBuffer: ArrayBuffer;
+      convertImage?: ReturnType<typeof mammoth.images.imgElement>;
+    }
+
+    const options: MammothOptions = {
       arrayBuffer,
-      convertImage: mammoth.images.imgElement(function(image) {
-        return image.read("base64").then(function(imageBuffer) {
-          const dataUri = "data:" + image.contentType + ";base64," + imageBuffer;
+      convertImage: mammoth.images.imgElement((image) => {
+        return image.read("base64").then((imageBuffer: string) => {
+          const dataUri =
+            "data:" + image.contentType + ";base64," + imageBuffer;
           return {
             src: dataUri,
-            style: "max-width: 100%; height: auto; display: block; margin: 16px auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"
+            style:
+              "max-width: 100%; height: auto; display: block; margin: 16px auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);",
           };
         });
-      })
-    } as any);
+      }),
+    };
+
+    // Enhanced mammoth conversion with image handling
+    const result = await mammoth.convertToHtml(options);
 
     // Post-process the HTML output for additional enhancements
     let enhancedHtml = result.value;
@@ -284,7 +294,10 @@ export const convertFileUrlToHtml = async (
       .replace(/<p([^>]*)>/g, '<p$1 class="docx-paragraph">')
 
       // Enhance heading structure
-      .replace(/<h([1-6])([^>]*)>/g, '<h$1$2 class="docx-heading docx-heading-$1">')
+      .replace(
+        /<h([1-6])([^>]*)>/g,
+        '<h$1$2 class="docx-heading docx-heading-$1">'
+      )
 
       // Enhance list structure
       .replace(/<ul([^>]*)>/g, '<ul$1 class="docx-list docx-list-unordered">')
@@ -297,8 +310,14 @@ export const convertFileUrlToHtml = async (
       .replace(/<a([^>]*)>/g, '<a$1 class="docx-link">')
 
       // Add section breaks for better readability
-      .replace(/(<h[1-6][^>]*>)/g, '<div class="docx-section-break">$1</div>')
-      .replace(/<\/div><div class="docx-section-break">/g, '</div>\n<div class="docx-section-break">');
+      .replace(
+        /(<h[1-6][^>]*>)/g,
+        '<div class="docx-section-break">$1</div>'
+      )
+      .replace(
+        /<\/div><div class="docx-section-break">/g,
+        "</div>\n<div class=\"docx-section-break\">"
+      );
 
     return `<div class="docx-content enhanced-docx">${enhancedHtml}</div>`;
   }
@@ -339,6 +358,9 @@ export const deleteUserFile = async (userId: string, fileName: string) => {
   const { error } = await supabase.storage.from("files").remove([filePath]);
   if (error) throw error;
 };
+
+
+
 
 export const getPublicUrlForUserFile = (
   userId: string,
