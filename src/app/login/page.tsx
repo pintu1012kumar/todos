@@ -4,7 +4,7 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../supabase-client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -13,6 +13,16 @@ export default function LoginPage() {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        router.push('/todo');
+      }
+    };
+    checkUser();
+  }, [router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
