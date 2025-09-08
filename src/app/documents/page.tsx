@@ -535,75 +535,319 @@ const Modal = ({
                 margin: 0 auto;
               }
 
-              /* Styles for Mammoth DOCX output */
+              /* Enhanced styles for Mammoth DOCX output */
               .docx-content h1,
               .docx-content h2,
               .docx-content h3,
-              .docx-content h4 {
+              .docx-content h4,
+              .docx-content h5,
+              .docx-content h6 {
                 font-weight: 700;
-                color: #000000;
+                color: #1a202c;
                 margin-top: 1.5em;
                 margin-bottom: 0.5em;
+                line-height: 1.2;
+                border-bottom: 2px solid #e2e8f0;
+                padding-bottom: 0.25em;
               }
               .docx-content h1 {
-                font-size: 1.5em;
+                font-size: 2em;
+                color: #2d3748;
               }
               .docx-content h2 {
-                font-size: 1.25em;
+                font-size: 1.5em;
+                color: #2d3748;
               }
               .docx-content h3 {
-                font-size: 1.1em;
+                font-size: 1.25em;
+                color: #4a5568;
               }
               .docx-content h4 {
+                font-size: 1.1em;
+                color: #4a5568;
+              }
+              .docx-content h5 {
                 font-size: 1em;
+                color: #718096;
+              }
+              .docx-content h6 {
+                font-size: 0.9em;
+                color: #718096;
+              }
+
+              /* Enhanced paragraph and text styling */
+              .docx-content .docx-paragraph {
+                margin-bottom: 1em;
+                line-height: 1.6;
+                color: #2d3748;
+                text-align: justify;
               }
               .docx-content p,
               .docx-content li {
                 margin-bottom: 1em;
+                line-height: 1.6;
               }
-              .docx-content ul,
-              .docx-content ol {
+
+              /* Enhanced list styling */
+              .docx-content .docx-list-unordered,
+              .docx-content .docx-list-ordered {
                 padding-left: 2em;
                 margin-bottom: 1em;
               }
+              .docx-content .docx-list-item {
+                margin-bottom: 0.5em;
+                line-height: 1.5;
+              }
+
+              /* Enhanced text formatting */
+              .docx-content .docx-strong {
+                font-weight: 700;
+                color: #1a202c;
+              }
+              .docx-content .docx-emphasis {
+                font-style: italic;
+                color: #4a5568;
+              }
+              .docx-content .docx-link {
+                color: #3182ce;
+                text-decoration: none;
+                border-bottom: 1px solid #3182ce;
+                transition: color 0.2s ease;
+              }
+              .docx-content .docx-link:hover {
+                color: #2c5282;
+                border-bottom-color: #2c5282;
+              }
 
               /* Enhanced table styling for DOCX */
-              .docx-content table {
+              .docx-content .docx-table {
                 border-collapse: collapse;
                 width: 100%;
-                margin: 16px 0;
-                border: 2px solid #333;
+                margin: 20px 0;
+                border: 2px solid #2d3748;
                 background: white;
-                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                border-radius: 8px;
+                overflow: hidden;
               }
 
-              .docx-content table td,
-              .docx-content table th {
-                border: 1px solid #333;
-                padding: 8px 12px;
+              .docx-content .docx-table .docx-table-row:nth-child(even) {
+                background-color: #f7fafc;
+              }
+
+              .docx-content .docx-table .docx-table-row:hover {
+                background-color: #edf2f7;
+                transition: background-color 0.2s ease;
+              }
+
+              .docx-content .docx-table .docx-table-cell,
+              .docx-content .docx-table .docx-table-header {
+                border: 1px solid #cbd5e0;
+                padding: 12px 16px;
                 text-align: left;
                 vertical-align: top;
+                font-size: 14px;
               }
 
-              .docx-content table th {
-                background-color: #4a5568;
+              .docx-content .docx-table .docx-table-header {
+                background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
                 color: white;
                 font-weight: 600;
                 text-align: center;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                font-size: 13px;
               }
 
-              .docx-content table tr:nth-child(even) {
-                background-color: #f8f9fa;
+              .docx-content .docx-table .docx-table-cell {
+                color: #2d3748;
               }
 
-              .docx-content table tr:hover {
-                background-color: #e9ecef;
+              /* Section breaks for better readability */
+              .docx-content .docx-section-break {
+                margin: 2em 0 1em 0;
+                padding: 1em 0;
+                border-top: 1px solid #e2e8f0;
+                border-bottom: 1px solid #e2e8f0;
+                background: linear-gradient(to right, #f7fafc, transparent, #f7fafc);
               }
 
-              .docx-content table caption {
+              .docx-content .docx-section-break .docx-heading {
+                margin-top: 0;
+                margin-bottom: 0.5em;
+              }
+
+              /* Special styling for contact information */
+              .docx-content .contact-info {
+                background-color: #e6fffa;
+                border-left: 4px solid #38b2ac;
+                padding: 12px 16px;
+                margin: 16px 0;
+                border-radius: 0 4px 4px 0;
+                font-weight: 500;
+              }
+
+              /* Special styling for section headers */
+              .docx-content .section-header {
+                background-color: #ebf8ff;
+                border-left: 4px solid #4299e1;
+                padding: 12px 16px;
+                margin: 16px 0;
+                border-radius: 0 4px 4px 0;
                 font-weight: 600;
+                font-size: 1.1em;
+                color: #2b6cb0;
+              }
+
+              /* Enhanced image styling for standardized display */
+              .docx-content .docx-image {
+                max-width: 100%;
+                height: auto;
+                display: block;
+                margin: 20px auto;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                border: 1px solid #e2e8f0;
+                background: white;
+                padding: 8px;
+                transition: transform 0.2s ease, box-shadow 0.2s ease;
+              }
+
+              .docx-content .docx-image:hover {
+                transform: scale(1.02);
+                box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+              }
+
+              /* Standard image sizes for different contexts */
+              .docx-content p .docx-image,
+              .docx-content .docx-paragraph .docx-image {
+                max-width: 90%;
+                margin: 16px auto;
+              }
+
+              /* Images in tables */
+              .docx-content .docx-table .docx-image {
+                max-width: 120px;
+                max-height: 80px;
+                margin: 4px auto;
+                border-radius: 4px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+              }
+
+              /* Large images (full-width) */
+              .docx-content .docx-image[style*="width: 100%"],
+              .docx-content .docx-image[style*="width:100%"] {
+                width: 100%;
+                max-width: 100%;
+                height: auto;
+                margin: 24px 0;
+                border-radius: 12px;
+                box-shadow: 0 6px 24px rgba(0, 0, 0, 0.1);
+              }
+
+              /* Medium images */
+              .docx-content .docx-image[style*="width: 50%"],
+              .docx-content .docx-image[style*="width:50%"] {
+                max-width: 50%;
+                height: auto;
+                margin: 16px;
+              }
+
+              /* Small images */
+              .docx-content .docx-image[style*="width: 25%"],
+              .docx-content .docx-image[style*="width:25%"] {
+                max-width: 25%;
+                height: auto;
+                margin: 8px;
+                float: left;
+                margin-right: 16px;
                 margin-bottom: 8px;
-                color: #333;
+              }
+
+              /* Image containers for better layout */
+              .docx-content .image-container {
+                text-align: center;
+                margin: 24px 0;
+                padding: 16px;
+                background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+                border-radius: 12px;
+                border: 1px solid #e2e8f0;
+              }
+
+              .docx-content .image-container .docx-image {
+                margin: 0;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+                border: none;
+                padding: 0;
+              }
+
+              /* Image captions */
+              .docx-content .image-caption {
+                font-size: 14px;
+                color: #718096;
+                margin-top: 8px;
+                font-style: italic;
+                text-align: center;
+              }
+
+              /* Responsive design for images */
+              @media (max-width: 768px) {
+                .docx-content .docx-image {
+                  margin: 16px auto;
+                  border-radius: 6px;
+                  padding: 6px;
+                }
+
+                .docx-content .docx-image[style*="width: 25%"],
+                .docx-content .docx-image[style*="width:25%"] {
+                  max-width: 100%;
+                  float: none;
+                  margin: 16px auto;
+                }
+
+                .docx-content .docx-image[style*="width: 50%"],
+                .docx-content .docx-image[style*="width:50%"] {
+                  max-width: 90%;
+                  margin: 16px auto;
+                }
+
+                .docx-content .image-container {
+                  padding: 12px;
+                  margin: 16px 0;
+                }
+
+                .docx-content .docx-table .docx-image {
+                  max-width: 80px;
+                  max-height: 60px;
+                }
+              }
+
+              /* Print styles for images */
+              @media print {
+                .docx-content .docx-image {
+                  max-width: 100%;
+                  height: auto;
+                  margin: 12px 0;
+                  box-shadow: none;
+                  border: 1px solid #ccc;
+                  page-break-inside: avoid;
+                }
+              }
+
+              /* Responsive design for tables */
+              @media (max-width: 768px) {
+                .docx-content .docx-table {
+                  font-size: 12px;
+                }
+
+                .docx-content .docx-table .docx-table-cell,
+                .docx-content .docx-table .docx-table-header {
+                  padding: 8px 12px;
+                }
+
+                .docx-content .docx-paragraph {
+                  text-align: left;
+                }
               }
 
               /* Styles for custom PDF HTML output */
