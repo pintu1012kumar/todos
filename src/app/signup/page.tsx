@@ -3,11 +3,12 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Terminal } from "lucide-react";
+import { supabase } from "../supabase-client";
 
 interface AlertState {
   title: string;
@@ -19,6 +20,16 @@ export default function SignupPage() {
   const [formData, setFormData] = useState({ name: '', email: '', password: '', confirmPassword: '' });
   const [alertInfo, setAlertInfo] = useState<AlertState | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        router.push('/todo');
+      }
+    };
+    checkUser();
+  }, [router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
