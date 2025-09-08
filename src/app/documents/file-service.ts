@@ -251,8 +251,56 @@ export const convertFileUrlToHtml = async (
 
   if (fileType === "docx") {
     const arrayBuffer = await response.arrayBuffer();
-    const result = await mammoth.convertToHtml({ arrayBuffer });
-    return `<div class="docx-content">${result.value}</div>`;
+
+    // Enhanced mammoth conversion with image handling
+    const result = await mammoth.convertToHtml({
+      arrayBuffer,
+      convertImage: mammoth.images.imgElement(function(image) {
+        return image.read("base64").then(function(imageBuffer) {
+          const dataUri = "data:" + image.contentType + ";base64," + imageBuffer;
+          return {
+            src: dataUri,
+            style: "max-width: 100%; height: auto; display: block; margin: 16px auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"
+          };
+        });
+      })
+    } as any);
+
+    // Post-process the HTML output for additional enhancements
+    let enhancedHtml = result.value;
+
+    // Add custom classes and structure for better styling
+    enhancedHtml = enhancedHtml
+      // Enhance image structure with standardized sizing
+      .replace(/<img([^>]*)>/g, '<img$1 class="docx-image">')
+
+      // Enhance table structure
+      .replace(/<table([^>]*)>/g, '<table$1 class="docx-table">')
+      .replace(/<tr([^>]*)>/g, '<tr$1 class="docx-table-row">')
+      .replace(/<td([^>]*)>/g, '<td$1 class="docx-table-cell">')
+      .replace(/<th([^>]*)>/g, '<th$1 class="docx-table-header">')
+
+      // Enhance paragraph structure
+      .replace(/<p([^>]*)>/g, '<p$1 class="docx-paragraph">')
+
+      // Enhance heading structure
+      .replace(/<h([1-6])([^>]*)>/g, '<h$1$2 class="docx-heading docx-heading-$1">')
+
+      // Enhance list structure
+      .replace(/<ul([^>]*)>/g, '<ul$1 class="docx-list docx-list-unordered">')
+      .replace(/<ol([^>]*)>/g, '<ol$1 class="docx-list docx-list-ordered">')
+      .replace(/<li([^>]*)>/g, '<li$1 class="docx-list-item">')
+
+      // Enhance text formatting
+      .replace(/<strong([^>]*)>/g, '<strong$1 class="docx-strong">')
+      .replace(/<em([^>]*)>/g, '<em$1 class="docx-emphasis">')
+      .replace(/<a([^>]*)>/g, '<a$1 class="docx-link">')
+
+      // Add section breaks for better readability
+      .replace(/(<h[1-6][^>]*>)/g, '<div class="docx-section-break">$1</div>')
+      .replace(/<\/div><div class="docx-section-break">/g, '</div>\n<div class="docx-section-break">');
+
+    return `<div class="docx-content enhanced-docx">${enhancedHtml}</div>`;
   }
 
   throw new Error("Unsupported file type");
