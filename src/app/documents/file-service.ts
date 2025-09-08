@@ -202,7 +202,7 @@ export const convertFileUrlToHtml = async (
 
         // Render normal line with bold/spacing if needed
         let customStyle = "";
-        let customClassName = "";
+        const customClassName = "";
         const isHeader =
           line.items.length === 1 &&
           (line.items[0].fontName.toLowerCase().includes("bold") ||

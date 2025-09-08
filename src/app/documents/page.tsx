@@ -219,6 +219,7 @@ export default function FileUploadForm() {
       setErrorMessages(["Unable to determine user. Please sign in again."]);
       return;
     }
+console.log(handleDelete);
 
     try {
       await deleteUserFile(userId, fileName);
