@@ -294,10 +294,7 @@ export const convertFileUrlToHtml = async (
       .replace(/<p([^>]*)>/g, '<p$1 class="docx-paragraph">')
 
       // Enhance heading structure
-      .replace(
-        /<h([1-6])([^>]*)>/g,
-        '<h$1$2 class="docx-heading docx-heading-$1">'
-      )
+   .replace(/<h([1-6])([^>]*)>/g, '<h$1$2 class="docx-heading docx-heading-$1" style="font-size: 16px;">')
 
       // Enhance list structure
       .replace(/<ul([^>]*)>/g, '<ul$1 class="docx-list docx-list-unordered">')
@@ -307,17 +304,14 @@ export const convertFileUrlToHtml = async (
       // Enhance text formatting
       .replace(/<strong([^>]*)>/g, '<strong$1 class="docx-strong">')
       .replace(/<em([^>]*)>/g, '<em$1 class="docx-emphasis">')
-      .replace(/<a([^>]*)>/g, '<a$1 class="docx-link">')
-
-      // Add section breaks for better readability
-      .replace(
-        /(<h[1-6][^>]*>)/g,
-        '<div class="docx-section-break">$1</div>'
-      )
-      .replace(
-        /<\/div><div class="docx-section-break">/g,
-        "</div>\n<div class=\"docx-section-break\">"
-      );
+      .replace(/<a([^>]*)>/g, '<a$1 class="docx-link">');
+      
+    // Remove the page break logic
+    enhancedHtml = enhancedHtml
+      // Remove the div wrapper that was causing the page break effect
+      .replace(/<div class="docx-section-break">(<h[1-6][^>]*>)<\/div>/g, '$1')
+      // Clean up any remaining div tags from the previous logic
+      .replace(/<\/div><div class="docx-section-break">/g, "");
 
     return `<div class="docx-content enhanced-docx">${enhancedHtml}</div>`;
   }
@@ -358,9 +352,6 @@ export const deleteUserFile = async (userId: string, fileName: string) => {
   const { error } = await supabase.storage.from("files").remove([filePath]);
   if (error) throw error;
 };
-
-
-
 
 export const getPublicUrlForUserFile = (
   userId: string,
