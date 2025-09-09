@@ -294,7 +294,7 @@ export const convertFileUrlToHtml = async (
       .replace(/<p([^>]*)>/g, '<p$1 class="docx-paragraph">')
 
       // Enhance heading structure
-   .replace(/<h([1-6])([^>]*)>/g, '<h$1$2 class="docx-heading docx-heading-$1" style="font-size: 16px;">')
+      .replace(/<h([1-6])([^>]*)>/g, '<h$1$2 class="docx-heading docx-heading-$1" style="font-size: 16px;">')
 
       // Enhance list structure
       .replace(/<ul([^>]*)>/g, '<ul$1 class="docx-list docx-list-unordered">')
@@ -352,9 +352,6 @@ export const deleteUserFile = async (userId: string, fileName: string) => {
   const { error } = await supabase.storage.from("files").remove([filePath]);
   if (error) throw error;
 };
-
-
-
 
 export const getPublicUrlForUserFile = (
   userId: string,
