@@ -293,9 +293,6 @@ export const convertFileUrlToHtml = async (
       // Enhance paragraph structure
       .replace(/<p([^>]*)>/g, '<p$1 class="docx-paragraph">')
 
-      // Enhance heading structure
-      .replace(/<h([1-6])([^>]*)>/g, '<h$1$2 class="docx-heading docx-heading-$1" style="font-size: 16px;">')
-
       // Enhance list structure
       .replace(/<ul([^>]*)>/g, '<ul$1 class="docx-list docx-list-unordered">')
       .replace(/<ol([^>]*)>/g, '<ol$1 class="docx-list docx-list-ordered">')
@@ -306,14 +303,59 @@ export const convertFileUrlToHtml = async (
       .replace(/<em([^>]*)>/g, '<em$1 class="docx-emphasis">')
       .replace(/<a([^>]*)>/g, '<a$1 class="docx-link">');
       
-    // Remove the page break logic
+    // Remove page break logic and apply new heading styles
     enhancedHtml = enhancedHtml
-      // Remove the div wrapper that was causing the page break effect
-      .replace(/<div class="docx-section-break">(<h[1-6][^>]*>)<\/div>/g, '$1')
-      // Clean up any remaining div tags from the previous logic
-      .replace(/<\/div><div class="docx-section-break">/g, "");
+      // Replace the old heading logic and add new inline styles for smaller fonts
+      .replace(
+        /<h1([^>]*)>/g,
+        '<h1$1 class="docx-heading docx-heading-1" style="font-size: 20px;">'
+      )
+      .replace(
+        /<h2([^>]*)>/g,
+        '<h2$1 class="docx-heading docx-heading-2" style="font-size: 18px;">'
+      )
+      .replace(
+        /<h3([^>]*)>/g,
+        '<h3$1 class="docx-heading docx-heading-3" style="font-size: 16px;">'
+      )
+      .replace(
+        /<h4([^>]*)>/g,
+        '<h4$1 class="docx-heading docx-heading-4" style="font-size: 14px;">'
+      )
+      .replace(
+        /<h5([^>]*)>/g,
+        '<h5$1 class="docx-heading docx-heading-5" style="font-size: 13px;">'
+      )
+      .replace(
+        /<h6([^>]*)>/g,
+        '<h6$1 class="docx-heading docx-heading-6" style="font-size: 12px;">'
+      );
+    
+    // Add CSS for list item display
+    const listStyles = `
+      <style>
+        .docx-list-unordered, .docx-list-ordered {
+          /* Use padding to create space for markers, prevents text from overlapping */
+          padding-left: 20px !important; 
+          margin-left: 0 !important;
+        }
+        .docx-list-unordered {
+          /* Force display of bullets */
+          list-style-type: disc !important;
+        }
+        .docx-list-ordered {
+          /* Force display of numbers */
+          list-style-type: decimal !important;
+        }
+        /* Style for nested lists to ensure proper indentation */
+        .docx-list-item ul, .docx-list-item ol {
+            margin-top: 0;
+            margin-bottom: 0;
+        }
+      </style>
+    `;
 
-    return `<div class="docx-content enhanced-docx">${enhancedHtml}</div>`;
+    return `<div class="docx-content enhanced-docx">${listStyles}${enhancedHtml}</div>`;
   }
 
   throw new Error("Unsupported file type");
